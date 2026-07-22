@@ -5,9 +5,17 @@ const Rim = require("./Rim");
 const Loader = require("./Loader");
 const Database = require("./Database");
 const Logger = require("./Logger");
+this.rim.services = new ServiceManager();
+this.rim.cache = new CacheManager();
 
-const ServiceManager = require("./managers/ServiceManager");
-const CacheManager = require("./managers/CacheManager");
+this.rim.services.register("config", this.config);
+this.rim.services.register("logger", Logger);
+this.rim.services.register("cache", this.rim.cache);
+
+this.rim.services.register(
+	"database",
+	this.rim.database
+);
 
 class Bootstrap {
 
