@@ -4,32 +4,24 @@ const path = require("path");
 const Logger = require("./Logger");
 
 class Loader {
-
 	constructor(rim) {
-
 		this.rim = rim;
 
 		this.root = process.cwd();
 
-		this.paths = {
-			scripts: path.join(this.root, "scripts"),
-			events: path.join(this.root, "scripts", "events"),
-			plugins: path.join(this.root, "plugins")
-		};
+		this.commandsPath = path.join(this.root, "scripts");
+		this.eventsPath = path.join(this.root, "scripts", "events");
+		this.pluginsPath = path.join(this.root, "plugins");
+
+		this.aliases = new Map();
 
 		this.stats = {
 			commands: 0,
 			events: 0,
 			plugins: 0,
-			errors: 0,
-			startTime: Date.now()
+			errors: 0
 		};
-
-		this.aliases = new Map();
-
 	}
-
-	/* بدء النظام */
 
 	async initialize() {
 
@@ -43,51 +35,32 @@ class Loader {
 
 		Logger.success(
 			"LOADER",
-			"اكتمل تحميل جميع الملفات"
+			"تم تحميل النظام بنجاح"
 		);
-
 	}
-
-	/* إنشاء المجلدات */
 
 	async ensureDirectories() {
 
 		const folders = [
-
 			"scripts",
-
-			"scripts/system",
-
 			"scripts/admin",
-
-			"scripts/group",
-
-			"scripts/media",
-
-			"scripts/tools",
-
 			"scripts/ai",
-
-			"scripts/games",
-
 			"scripts/downloads",
-
 			"scripts/economy",
-
-			"scripts/owner",
-
 			"scripts/events",
-
+			"scripts/fun",
+			"scripts/games",
+			"scripts/group",
+			"scripts/media",
+			"scripts/owner",
+			"scripts/system",
+			"scripts/tools",
 			"plugins"
-
 		];
 
 		for (const folder of folders) {
 
-			const full = path.join(
-				this.root,
-				folder
-			);
+			const full = path.join(this.root, folder);
 
 			if (!fs.existsSync(full)) {
 
@@ -106,57 +79,42 @@ class Loader {
 
 	}
 
-	/* البحث داخل المجلدات */
+	scan(directory) {
 
-	scanFiles(directory, extension = ".js") {
-
-		const result = [];
+		const files = [];
 
 		if (!fs.existsSync(directory))
-			return result;
+			return files;
 
-		const files = fs.readdirSync(directory, {
+		const items = fs.readdirSync(directory, {
 			withFileTypes: true
 		});
 
-		for (const file of files) {
+		for (const item of items) {
 
-			const full = path.join(
-				directory,
-				file.name
-			);
+			const full = path.join(directory, item.name);
 
-			if (file.isDirectory()) {
+			if (item.isDirectory()) {
 
-				result.push(
-					...this.scanFiles(
-						full,
-						extension
-					)
-				);
+				files.push(...this.scan(full));
 
 				continue;
 
 			}
 
 			if (
-				file.isFile() &&
-				path.extname(file.name) === extension
-			) {
-
-				result.push(full);
-
-			}
+				item.isFile() &&
+				item.name.endsWith(".js")
+			)
+				files.push(full);
 
 		}
 
-		return result;
+		return files;
 
 	}
 
-	/* حذف كاش require */
-
-	clearRequireCache(file) {
+	clearCache(file) {
 
 		try {
 
@@ -169,18 +127,14 @@ class Loader {
 
 	}
 
-	/* إعادة تحميل ملف */
+	requireFile(file) {
 
-	reload(file) {
-
-		this.clearRequireCache(file);
+		this.clearCache(file);
 
 		return require(file);
 
-	}
-		/* تحميل جميع الأوامر */
-
-	async loadCommands() {
+		}
+	     	async loadCommands() {
 
 		Logger.loader("تحميل الأوامر...");
 
@@ -190,13 +144,9 @@ class Loader {
 
 		this.stats.commands = 0;
 
-		const files = this.scanFiles(
-			this.paths.scripts
-		);
+		const files = this.scan(this.commandsPath);
 
 		for (const file of files) {
-
-			/* تجاهل مجلد الأحداث */
 
 			if (
 				file.includes(
@@ -207,7 +157,8 @@ class Loader {
 
 			try {
 
-				const command = this.reload(file);
+				const command =
+					this.requireFile(file);
 
 				if (!command)
 					continue;
@@ -224,7 +175,8 @@ class Loader {
 				}
 
 				if (
-					typeof command.execute !== "function"
+					typeof command.execute !==
+					"function"
 				) {
 
 					Logger.warn(
@@ -237,12 +189,14 @@ class Loader {
 				}
 
 				if (
-					this.rim.commands.has(command.name)
+					this.rim.commands.has(
+						command.name
+					)
 				) {
 
 					Logger.warn(
 						"COMMAND",
-						`الأمر ${command.name} مكرر`
+						`${command.name} موجود مسبقًا`
 					);
 
 					continue;
@@ -256,24 +210,16 @@ class Loader {
 					command
 				);
 
-				/* تسجيل Alias */
-
 				if (
 					Array.isArray(command.aliases)
 				) {
 
 					for (const alias of command.aliases) {
 
-						if (
-							!this.aliases.has(alias)
-						) {
-
-							this.aliases.set(
-								alias,
-								command.name
-							);
-
-						}
+						this.aliases.set(
+							alias.toLowerCase(),
+							command.name
+						);
 
 					}
 
@@ -299,8 +245,11 @@ class Loader {
 
 		Logger.success(
 			"LOADER",
-			`تم تحميل ${this.stats.commands} أمر
-				/* تحميل جميع الأحداث */
+			`تم تحميل ${this.stats.commands} أمر`
+		);
+
+			}
+	    	/* تحميل جميع الأحداث */
 
 	async loadEvents() {
 
@@ -310,15 +259,13 @@ class Loader {
 
 		this.stats.events = 0;
 
-		const files = this.scanFiles(
-			this.paths.events
-		);
+		const files = this.scan(this.eventsPath);
 
 		for (const file of files) {
 
 			try {
 
-				const event = this.reload(file);
+				const event = this.requireFile(file);
 
 				if (!event)
 					continue;
@@ -334,7 +281,9 @@ class Loader {
 
 				}
 
-				if (typeof event.execute !== "function") {
+				if (
+					typeof event.execute !== "function"
+				) {
 
 					Logger.warn(
 						"EVENT",
@@ -345,11 +294,13 @@ class Loader {
 
 				}
 
-				if (this.rim.events.has(event.name)) {
+				if (
+					this.rim.events.has(event.name)
+				) {
 
 					Logger.warn(
 						"EVENT",
-						`الحدث ${event.name} مكرر`
+						`${event.name} موجود مسبقًا`
 					);
 
 					continue;
@@ -388,6 +339,121 @@ class Loader {
 
 	}
 
-	/* إعادة تحميل أمر */
+	/* حل Alias */
 
-	async reload
+	resolveAlias(name) {
+
+		name = name.toLowerCase();
+
+		if (this.rim.commands.has(name))
+			return name;
+
+		if (this.aliases.has(name))
+			return this.aliases.get(name);
+
+		return null;
+
+	}
+		/* إعادة تحميل أمر */
+
+	async reloadCommand(name) {
+
+		const command = this.rim.commands.get(name);
+
+		if (!command)
+			return false;
+
+		try {
+
+			const file = command.filePath;
+
+			const newCommand = this.requireFile(file);
+
+			newCommand.filePath = file;
+
+			this.rim.commands.set(
+				newCommand.name,
+				newCommand
+			);
+
+			Logger.success(
+				"LOADER",
+				`تم إعادة تحميل ${newCommand.name}`
+			);
+
+			return true;
+
+		}
+		catch (err) {
+
+			Logger.error(
+				"LOADER",
+				err.stack || err.message
+			);
+
+			return false;
+
+		}
+
+	}
+
+	/* إعادة تحميل حدث */
+
+	async reloadEvent(name) {
+
+		const event = this.rim.events.get(name);
+
+		if (!event)
+			return false;
+
+		try {
+
+			const file = event.filePath;
+
+			const newEvent = this.requireFile(file);
+
+			newEvent.filePath = file;
+
+			this.rim.events.set(
+				newEvent.name,
+				newEvent
+			);
+
+			Logger.success(
+				"LOADER",
+				`تم إعادة تحميل الحدث ${newEvent.name}`
+			);
+
+			return true;
+
+		}
+		catch (err) {
+
+			Logger.error(
+				"LOADER",
+				err.stack || err.message
+			);
+
+			return false;
+
+		}
+
+	}
+
+	/* الإحصائيات */
+
+	getStats() {
+
+		return {
+			commands: this.stats.commands,
+			events: this.stats.events,
+			plugins: this.stats.plugins,
+			errors: this.stats.errors,
+			aliases: this.aliases.size
+		};
+
+	}
+
+}
+
+module.exports = Loader;
