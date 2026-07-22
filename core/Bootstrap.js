@@ -5,6 +5,7 @@ const Rim = require("./Rim");
 const Loader = require("./Loader");
 const Database = require("./Database");
 const Logger = require("./Logger");
+const EventDispatcher = require("./EventDispatcher");
 
 class Bootstrap {
 	constructor() {
@@ -34,6 +35,7 @@ class Bootstrap {
 
 		this.rim = new Rim({
 			config: this.config
+		
 		});
 
 		global.Rim = this.rim;
