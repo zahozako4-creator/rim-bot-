@@ -1,24 +1,45 @@
+const Context = require("../structures/Context");
+
 class Parser {
+
 	constructor(rim) {
 		this.rim = rim;
 	}
 
 	parse(event) {
-		const body = event.body || "";
 
-		const prefix = this.rim.config.prefix || ".";
+		const body = String(event.body || "").trim();
 
-		const isCommand = body.startsWith(prefix);
+		const prefix =
+			this.rim.config.prefix || ".";
 
-		const args = isCommand
-			? body.slice(prefix.length).trim().split(/\s+/)
-			: [];
+		const isCommand =
+			body.startsWith(prefix);
 
-		const command = isCommand
-			? (args.shift() || "").toLowerCase()
-			: null;
+		let command = null;
 
-		return {
+		let args = [];
+
+		if (isCommand) {
+
+			const content = body
+				.slice(prefix.length)
+				.trim();
+
+			args = content.length
+				? content.split(/\s+/)
+				: [];
+
+			command = args.shift()?.toLowerCase() || null;
+
+		}
+
+		return new Context({
+
+			rim: this.rim,
+
+			api: this.rim.api,
+
 			raw: event,
 
 			type: event.type,
@@ -31,21 +52,24 @@ class Parser {
 
 			body,
 
-			isCommand,
+			prefix,
 
 			command,
 
 			args,
 
-			prefix,
+			isCommand,
 
 			mentions: event.mentions || {},
 
 			attachments: event.attachments || [],
 
 			timestamp: event.timestamp || Date.now()
-		};
+
+		});
+
 	}
+
 }
 
 module.exports = Parser;
