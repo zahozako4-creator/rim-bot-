@@ -1,59 +1,219 @@
-const Parser = require("./Parser");
+const fs = require("fs");
 const Logger = require("../Logger");
 
-class Router {
+class Sender {
 
 	constructor(rim) {
-
 		this.rim = rim;
+	}
 
-		this.parser = new Parser(rim);
+	get api() {
+
+		if (!this.rim.api)
+			throw new Error("Facebook API غير متصل");
+
+		return this.rim.api;
 
 	}
 
-	async handle(event) {
+	ensureFile(filePath) {
 
-		const ctx = this.parser.parse(event);
+		if (!fs.existsSync(filePath))
+			throw new Error(`الملف غير موجود:\n${filePath}`);
 
-		// الرسالة ليست أمرًا
-		if (!ctx.isCommand)
-			return;
+	}
 
-		// دعم الـ Alias
-		const commandName =
-			this.rim.loader?.resolveAlias(ctx.command) || ctx.command;
+	send(options, threadID, replyTo = null) {
 
-		const command = this.rim.commands.get(commandName);
+		return new Promise((resolve, reject) => {
 
-		if (!command) {
+			this.api.sendMessage(
+				options,
+				threadID,
+				(err, info) => {
 
-			Logger.warn(
-				"ROUTER",
-				`الأمر غير موجود: ${ctx.command}`
+					if (err) {
+
+						Logger.error(
+							"SENDER",
+							err.stack || err.message
+						);
+
+						return reject(err);
+
+					}
+
+					resolve(info);
+
+				},
+				replyTo
 			);
 
-			return;
+		});
 
-		}
+	}
 
-		try {
+	async text(threadID, body, replyTo = null) {
 
-			ctx.command = command;
+		return this.send(
+			{ body },
+			threadID,
+			replyTo
+		);
 
-			await command.execute(ctx);
+	}
 
-		}
-		catch (err) {
+	async reply(ctx, body) {
 
-			Logger.error(
-				"ROUTER",
-				err.stack || err.message
+		return this.text(
+			ctx.threadID,
+			body,
+			ctx.messageID
+		);
+
+	}
+
+	async sendFile(threadID, filePath, body = "", replyTo = null) {
+
+		this.ensureFile(filePath);
+
+		const stream = fs.createReadStream(filePath);
+
+		return this.send(
+			{
+				body,
+				attachment: stream
+			},
+			threadID,
+			replyTo
+		);
+
+	}
+
+	async image(threadID, filePath, body = "") {
+
+		return this.sendFile(
+			threadID,
+			filePath,
+			body
+		);
+
+	}
+
+	async video(threadID, filePath, body = "") {
+
+		return this.sendFile(
+			threadID,
+			filePath,
+			body
+		);
+
+	}
+
+	async audio(threadID, filePath, body = "") {
+
+		return this.sendFile(
+			threadID,
+			filePath,
+			body
+		);
+
+	}
+
+	async sticker(threadID, stickerID) {
+
+		return new Promise((resolve, reject) => {
+
+			this.api.sendMessage(
+				{
+					sticker: stickerID
+				},
+				threadID,
+				(err, info) => {
+
+					if (err)
+						return reject(err);
+
+					resolve(info);
+
+				}
 			);
 
-		}
+		});
+
+	}
+
+	async typing(threadID, status = true) {
+
+		if (typeof this.api.sendTypingIndicator === "function")
+			return this.api.sendTypingIndicator(threadID, status);
+
+	}
+
+	async react(emoji, messageID) {
+
+		return new Promise((resolve, reject) => {
+
+			this.api.setMessageReaction(
+				emoji,
+				messageID,
+				err => {
+
+					if (err)
+						return reject(err);
+
+					resolve(true);
+
+				},
+				true
+			);
+
+		});
+
+	}
+
+	async unsend(messageID) {
+
+		return new Promise((resolve, reject) => {
+
+			this.api.unsendMessage(
+				messageID,
+				err => {
+
+					if (err)
+						return reject(err);
+
+					resolve(true);
+
+				}
+			);
+
+		});
+
+	}
+
+	async nickname(threadID, userID, nickname) {
+
+		return new Promise((resolve, reject) => {
+
+			this.api.changeNickname(
+				nickname,
+				threadID,
+				userID,
+				err => {
+
+					if (err)
+						return reject(err);
+
+					resolve(true);
+
+				}
+			);
+
+		});
 
 	}
 
 }
 
-module.exports = Router;
+module.exports = Sender;
