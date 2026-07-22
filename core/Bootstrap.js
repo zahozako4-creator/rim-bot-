@@ -8,6 +8,7 @@ const Logger = require("./Logger");
 const EventDispatcher = require("./EventDispatcher");
 
 class Bootstrap {
+
 	constructor() {
 		this.rim = null;
 		this.config = null;
@@ -21,21 +22,21 @@ class Bootstrap {
 
 		try {
 			this.config = JSON.parse(fs.readFileSync(configPath, "utf8"));
-			Logger.success("تم تحميل config.json");
+			Logger.success("BOOTSTRAP", "تم تحميل config.json");
 			return this.config;
 		}
 		catch (err) {
-			Logger.error("فشل في قراءة config.json");
+			Logger.error("BOOTSTRAP", err.message);
 			throw err;
 		}
 	}
 
 	async initializeCore() {
+
 		Logger.system("تهيئة محرك Rim...");
 
 		this.rim = new Rim({
 			config: this.config
-		
 		});
 
 		global.Rim = this.rim;
@@ -43,10 +44,14 @@ class Bootstrap {
 		this.rim.commands = new Map();
 		this.rim.events = new Map();
 
-		Logger.success("تم تهيئة المحرك");
+		this.rim.dispatcher = new EventDispatcher(this.rim);
+
+		Logger.success("BOOTSTRAP", "تم إنشاء محرك Rim");
+
 	}
 
 	async initializeDatabase() {
+
 		Logger.database("الاتصال بقاعدة البيانات...");
 
 		this.rim.database = new Database(this.rim);
@@ -54,38 +59,48 @@ class Bootstrap {
 		if (typeof this.rim.database.connect === "function")
 			await this.rim.database.connect();
 
-		Logger.success("تم الاتصال بقاعدة البيانات");
+		Logger.success("DATABASE", "تم الاتصال بقاعدة البيانات");
+
 	}
 
 	async initializeLoader() {
-		Logger.loader("تحميل الأوامر والأحداث...");
+
+		Logger.loader("تحميل الملفات...");
 
 		this.rim.loader = new Loader(this.rim);
 
-		if (typeof this.rim.loader.loadCommands === "function")
-			await this.rim.loader.loadCommands();
+		if (typeof this.rim.loader.initialize === "function")
+			await this.rim.loader.initialize();
 
-		if (typeof this.rim.loader.loadEvents === "function")
-			await this.rim.loader.loadEvents();
+		Logger.success("LOADER", "اكتمل تحميل الملفات");
 
-		Logger.success("تم تحميل جميع الملفات");
 	}
 
 	async initializeModules() {
+
 		Logger.system("تهيئة الوحدات...");
 
-		// سيتم إضافة:
-		// Language
-		// Messenger
-		// Router
-		// Middleware
+		/*
+			سيتم إضافتها لاحقًا
+
+			Language
+			Messenger
+			Context
+			Router
+			Middleware
+			Permission
+			Economy
+			Plugin
+			HotReload
+		*/
+
 	}
 
 	async start() {
 
-		Logger.system("━━━━━━━━━━━━━━━━━━━━━━");
+		Logger.system("━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 		Logger.system("🍓 بدء تشغيل Rim Framework");
-		Logger.system("━━━━━━━━━━━━━━━━━━━━━━");
+		Logger.system("━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
 		this.loadConfig();
 
@@ -100,15 +115,19 @@ class Bootstrap {
 		if (typeof this.rim.start === "function")
 			await this.rim.start();
 
-		Logger.system("━━━━━━━━━━━━━━━━━━━━━━");
-		Logger.success("تم تشغيل Rim بنجاح");
-		Logger.info(`الإصدار : ${this.rim.version || "1.0.0"}`);
-		Logger.info(`الأوامر : ${this.rim.commands.size}`);
-		Logger.info(`الأحداث : ${this.rim.events.size}`);
-		Logger.system("━━━━━━━━━━━━━━━━━━━━━━");
+		Logger.system("━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
+		Logger.success("BOOTSTRAP", "تم تشغيل Rim بنجاح");
+
+		Logger.info("BOOTSTRAP", `Version : ${this.rim.version || "1.0.0"}`);
+		Logger.info("BOOTSTRAP", `Commands : ${this.rim.commands.size}`);
+		Logger.info("BOOTSTRAP", `Events : ${this.rim.events.size}`);
+
+		Logger.system("━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
 		return this.rim;
 	}
+
 }
 
 module.exports = Bootstrap;
