@@ -6,6 +6,7 @@ const Loader = require("./Loader");
 const Database = require("./Database");
 const Logger = require("./Logger");
 const EventDispatcher = require("./EventDispatcher");
+const ServiceManager = require("./managers/ServiceManager");
 
 class Bootstrap {
 
@@ -45,6 +46,10 @@ class Bootstrap {
 		this.rim.events = new Map();
 
 		this.rim.dispatcher = new EventDispatcher(this.rim);
+		this.rim.services = new ServiceManager();
+
+this.rim.services.register("config", this.config);
+this.rim.services.register("logger", Logger);
 
 		Logger.success("BOOTSTRAP", "تم إنشاء محرك Rim");
 
@@ -58,7 +63,7 @@ class Bootstrap {
 
 		if (typeof this.rim.database.connect === "function")
 			await this.rim.database.connect();
-
+this.rim.services.register("database", this.rim.database);
 		Logger.success("DATABASE", "تم الاتصال بقاعدة البيانات");
 
 	}
@@ -71,6 +76,7 @@ class Bootstrap {
 
 		if (typeof this.rim.loader.initialize === "function")
 			await this.rim.loader.initialize();
+		
 
 		Logger.success("LOADER", "اكتمل تحميل الملفات");
 
