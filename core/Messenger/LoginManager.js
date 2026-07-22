@@ -7,11 +7,8 @@ const Logger = require("../Logger");
 class LoginManager {
 
 	constructor(rim) {
-
 		this.rim = rim;
-
 		this.api = null;
-
 		this.connected = false;
 
 		this.statePath = path.join(
@@ -19,15 +16,12 @@ class LoginManager {
 			"accounts",
 			"fbstate.json"
 		);
-
 	}
 
 	loadAppState() {
 
 		if (!fs.existsSync(this.statePath)) {
-			throw new Error(
-				"لم يتم العثور على accounts/fbstate.json"
-			);
+			throw new Error("لم يتم العثور على accounts/fbstate.json");
 		}
 
 		return JSON.parse(
@@ -48,4 +42,35 @@ class LoginManager {
 			Logger.success(
 				"LOGIN",
 				"تم تحديث fbstate.json"
-			
+			);
+
+		}
+		catch (err) {
+
+			Logger.warn(
+				"LOGIN",
+				"تعذر حفظ fbstate.json"
+			);
+
+		}
+
+	}
+
+	async connect() {
+
+		if (this.connected)
+			return this.api;
+
+		Logger.system("بدء تسجيل الدخول إلى Facebook...");
+
+		const appState = this.loadAppState();
+
+		return new Promise((resolve, reject) => {
+
+			login(
+				{
+					appState,
+					listenEvents: true,
+					selfListen: false,
+					forceLogin: true,
+					autoMark
