@@ -2,13 +2,19 @@ const MessengerClient = require("./Messenger/MessengerClient");
 const Listener = require("./Messenger/Listener");
 const Router = require("./Messenger/Router");
 const Sender = require("./Messenger/Sender");
+const Logger = require("./Logger");
 
 class Rim {
+
 	constructor(options = {}) {
 
 		this.config = options.config || {};
 
 		this.version = "1.0.0";
+
+		this.started = false;
+
+		this.startedAt = null;
 
 		this.api = null;
 
@@ -22,6 +28,8 @@ class Rim {
 
 		this.services = null;
 
+		this.loader = null;
+
 		this.messenger = null;
 
 		this.listener = null;
@@ -29,11 +37,15 @@ class Rim {
 		this.router = null;
 
 		this.sender = null;
+
 	}
 
 	async start() {
 
-		/* الاتصال بفيسبوك */
+		if (this.started)
+			return;
+
+		Logger.system("بدء تشغيل Messenger...");
 
 		this.messenger = new MessengerClient(this);
 
@@ -41,34 +53,34 @@ class Rim {
 
 		this.api = this.messenger.getAPI();
 
-		/* نظام الإرسال */
-
 		this.sender = new Sender(this);
-
-		/* الراوتر */
 
 		this.router = new Router(this);
 
-		/* الاستماع */
-
 		this.listener = new Listener(this, this.api);
 
-		this.listener.on("message", async (event) => {
+		this.listener.on("message", event =>
+			this.router.handle(event)
+		);
 
-			await this.router.handle(event);
-
-		});
-
-		this.listener.on("error", err => {
-
-			console.error("[Listener]", err);
-
-		});
+		this.listener.on("error", err =>
+			Logger.error("LISTENER", err.stack || err.message)
+		);
 
 		await this.listener.start();
+
+		this.started = true;
+
+		this.startedAt = Date.now();
+
+		Logger.success("RIM", "تم تشغيل Rim");
+
 	}
 
 	async stop() {
+
+		if (!this.started)
+			return;
 
 		if (this.listener)
 			this.listener.stop();
@@ -76,7 +88,33 @@ class Rim {
 		if (this.messenger)
 			await this.messenger.disconnect();
 
+		this.started = false;
+
+		Logger.warn("RIM", "تم إيقاف Rim");
+
 	}
+
+	getCommand(name) {
+
+		return this.commands.get(name);
+
+	}
+
+	getEvent(name) {
+
+		return this.events.get(name);
+
+	}
+
+	getUptime() {
+
+		if (!this.startedAt)
+			return 0;
+
+		return Date.now() - this.startedAt;
+
+	}
+
 }
 
 module.exports = Rim;
