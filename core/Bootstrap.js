@@ -4,6 +4,7 @@ const path = require("path");
 const Rim = require("./Rim");
 const Loader = require("./Loader");
 const Database = require("./Database");
+const Logger = require("./Logger");
 
 class Bootstrap {
 	constructor() {
@@ -15,45 +16,74 @@ class Bootstrap {
 		const configPath = path.resolve(process.cwd(), "config.json");
 
 		if (!fs.existsSync(configPath))
-			throw new Error("❌ لم يتم العثور على ملف config.json");
+			throw new Error("لم يتم العثور على ملف config.json");
 
 		try {
 			this.config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+			Logger.success("تم تحميل config.json");
 			return this.config;
 		}
 		catch (err) {
-			throw new Error("❌ خطأ أثناء قراءة config.json\n" + err.message);
+			Logger.error("فشل في قراءة config.json");
+			throw err;
 		}
 	}
 
 	async initializeCore() {
+		Logger.system("تهيئة محرك Rim...");
+
 		this.rim = new Rim({
 			config: this.config
 		});
 
 		global.Rim = this.rim;
+
+		this.rim.commands = new Map();
+		this.rim.events = new Map();
+
+		Logger.success("تم تهيئة المحرك");
 	}
 
 	async initializeDatabase() {
+		Logger.database("الاتصال بقاعدة البيانات...");
+
 		this.rim.database = new Database(this.rim);
-		await this.rim.database.connect();
+
+		if (typeof this.rim.database.connect === "function")
+			await this.rim.database.connect();
+
+		Logger.success("تم الاتصال بقاعدة البيانات");
 	}
 
 	async initializeLoader() {
+		Logger.loader("تحميل الأوامر والأحداث...");
+
 		this.rim.loader = new Loader(this.rim);
 
-		await this.rim.loader.loadCommands();
-		await this.rim.loader.loadEvents();
+		if (typeof this.rim.loader.loadCommands === "function")
+			await this.rim.loader.loadCommands();
+
+		if (typeof this.rim.loader.loadEvents === "function")
+			await this.rim.loader.loadEvents();
+
+		Logger.success("تم تحميل جميع الملفات");
 	}
 
 	async initializeModules() {
-		// سيتم إضافة Language و Messenger و Router لاحقاً
+		Logger.system("تهيئة الوحدات...");
+
+		// سيتم إضافة:
+		// Language
+		// Messenger
+		// Router
+		// Middleware
 	}
 
 	async start() {
-		console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━");
-		console.log("🍓 بدء تشغيل Rim Framework");
-		console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
+		Logger.system("━━━━━━━━━━━━━━━━━━━━━━");
+		Logger.system("🍓 بدء تشغيل Rim Framework");
+		Logger.system("━━━━━━━━━━━━━━━━━━━━━━");
 
 		this.loadConfig();
 
@@ -65,14 +95,15 @@ class Bootstrap {
 
 		await this.initializeModules();
 
-		await this.rim.start();
+		if (typeof this.rim.start === "function")
+			await this.rim.start();
 
-		console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━");
-		console.log("✅ Rim جاهز للعمل");
-		console.log(`📦 Version : ${this.rim.version}`);
-		console.log(`⚡ Commands : ${this.rim.commands.size}`);
-		console.log(`🎉 Events : ${this.rim.events.size}`);
-		console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━");
+		Logger.system("━━━━━━━━━━━━━━━━━━━━━━");
+		Logger.success("تم تشغيل Rim بنجاح");
+		Logger.info(`الإصدار : ${this.rim.version || "1.0.0"}`);
+		Logger.info(`الأوامر : ${this.rim.commands.size}`);
+		Logger.info(`الأحداث : ${this.rim.events.size}`);
+		Logger.system("━━━━━━━━━━━━━━━━━━━━━━");
 
 		return this.rim;
 	}
