@@ -73,4 +73,90 @@ class LoginManager {
 					listenEvents: true,
 					selfListen: false,
 					forceLogin: true,
-					autoMark
+					autoMarkRead: false,
+					autoMarkDelivery: false
+				},
+				(err, api) => {
+
+					if (err) {
+
+						Logger.error(
+							"LOGIN",
+							err.stack || err.message
+						);
+
+						return reject(err);
+
+					}
+
+					this.api = api;
+					this.connected = true;
+					this.rim.api = api;
+
+					if (typeof api.getAppState === "function") {
+						this.saveAppState(api.getAppState());
+					}
+
+					Logger.success(
+						"LOGIN",
+						"تم تسجيل الدخول بنجاح"
+					);
+
+					resolve(api);
+
+				}
+			);
+
+		});
+
+	}
+
+	getAPI() {
+		return this.api;
+	}
+
+	isConnected() {
+		return this.connected;
+	}
+
+	async disconnect() {
+
+		if (!this.api)
+			return;
+
+		try {
+
+			if (typeof this.api.logout === "function") {
+				await this.api.logout();
+			}
+
+		}
+		catch (err) {}
+
+		this.api = null;
+		this.connected = false;
+		this.rim.api = null;
+
+		Logger.warn(
+			"LOGIN",
+			"تم قطع الاتصال"
+		);
+
+	}
+
+	async reconnect() {
+
+		Logger.warn(
+			"LOGIN",
+			"إعادة الاتصال..."
+		);
+
+		await this.disconnect();
+
+		return this.connect();
+
+	}
+
+}
+
+module.exports = LoginManager;
