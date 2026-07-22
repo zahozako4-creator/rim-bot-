@@ -1,6 +1,5 @@
 const fs = require("fs");
 const path = require("path");
-
 const login = require("fca-unofficial");
 
 const Logger = require("../Logger");
@@ -13,6 +12,8 @@ class LoginManager {
 
 		this.api = null;
 
+		this.connected = false;
+
 		this.statePath = path.join(
 			process.cwd(),
 			"accounts",
@@ -23,8 +24,11 @@ class LoginManager {
 
 	loadAppState() {
 
-		if (!fs.existsSync(this.statePath))
-			throw new Error("لم يتم العثور على accounts/fbstate.json");
+		if (!fs.existsSync(this.statePath)) {
+			throw new Error(
+				"لم يتم العثور على accounts/fbstate.json"
+			);
+		}
 
 		return JSON.parse(
 			fs.readFileSync(this.statePath, "utf8")
@@ -41,48 +45,7 @@ class LoginManager {
 				JSON.stringify(appState, null, 2)
 			);
 
-		}
-		catch (err) {
-
-			Logger.warn(
+			Logger.success(
 				"LOGIN",
-				"تعذر حفظ AppState"
-			);
-
-		}
-
-	}
-
-	async connect() {
-
-		Logger.system("تسجيل الدخول إلى Facebook...");
-
-		const appState = this.loadAppState();
-
-		return new Promise((resolve, reject) => {
-
-			login(
-				{
-					appState,
-
-					listenEvents: true,
-
-					selfListen: false,
-
-					forceLogin: true,
-
-					autoMarkRead: false,
-
-					autoMarkDelivery: false
-				},
-
-				(err, api) => {
-
-					if (err) {
-
-						Logger.error(
-							"LOGIN",
-							err.stack || err.message
-						);
-
-						return reject(err
+				"تم تحديث fbstate.json"
+			
