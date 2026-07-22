@@ -1,67 +1,81 @@
-const EventEmitter = require("events");
+const MessengerClient = require("./Messenger/MessengerClient");
+const Listener = require("./Messenger/Listener");
+const Router = require("./Messenger/Router");
+const Sender = require("./Messenger/Sender");
 
-class Rim extends EventEmitter {
+class Rim {
 	constructor(options = {}) {
-		super();
-
-		this.version = "1.0.0";
-		this.name = "Rim 🍓";
-		this.startedAt = null;
 
 		this.config = options.config || {};
 
-		this.database = null;
-		this.loader = null;
-		this.router = null;
-		this.messenger = null;
-		this.language = null;
-		this.permission = null;
-		this.prefix = null;
-		this.logger = null;
+		this.version = "1.0.0";
+
+		this.api = null;
 
 		this.commands = new Map();
+
 		this.events = new Map();
 
-		this.cache = {
-			users: new Map(),
-			threads: new Map(),
-			cooldowns: new Map()
-		};
-	}
+		this.database = null;
 
-	async initialize() {
-		this.startedAt = Date.now();
+		this.cache = null;
 
-		this.emit("initialize");
+		this.services = null;
+
+		this.messenger = null;
+
+		this.listener = null;
+
+		this.router = null;
+
+		this.sender = null;
 	}
 
 	async start() {
-		await this.initialize();
 
-		this.emit("ready");
+		/* الاتصال بفيسبوك */
+
+		this.messenger = new MessengerClient(this);
+
+		await this.messenger.start();
+
+		this.api = this.messenger.getAPI();
+
+		/* نظام الإرسال */
+
+		this.sender = new Sender(this);
+
+		/* الراوتر */
+
+		this.router = new Router(this);
+
+		/* الاستماع */
+
+		this.listener = new Listener(this, this.api);
+
+		this.listener.on("message", async (event) => {
+
+			await this.router.handle(event);
+
+		});
+
+		this.listener.on("error", err => {
+
+			console.error("[Listener]", err);
+
+		});
+
+		await this.listener.start();
 	}
 
-	get uptime() {
-		if (!this.startedAt)
-			return 0;
+	async stop() {
 
-		return Date.now() - this.startedAt;
-	}
+		if (this.listener)
+			this.listener.stop();
 
-	registerCommand(command) {
-		this.commands.set(command.config.name, command);
-	}
+		if (this.messenger)
+			await this.messenger.disconnect();
 
-	registerEvent(event) {
-		this.events.set(event.config.name, event);
-	}
-
-	getCommand(name) {
-		return this.commands.get(name);
-	}
-
-	getEvent(name) {
-		return this.events.get(name);
 	}
 }
 
