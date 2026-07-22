@@ -7,6 +7,7 @@ const Database = require("./Database");
 const Logger = require("./Logger");
 const EventDispatcher = require("./EventDispatcher");
 const ServiceManager = require("./managers/ServiceManager");
+const CacheManager = require("./managers/CacheManager");
 
 class Bootstrap {
 
@@ -47,6 +48,10 @@ class Bootstrap {
 
 		this.rim.dispatcher = new EventDispatcher(this.rim);
 		this.rim.services = new ServiceManager();
+		this.rim.cache = new CacheManager();
+
+this.rim.services.register("cache", this.rim.cache);
+		
 
 this.rim.services.register("config", this.config);
 this.rim.services.register("logger", Logger);
