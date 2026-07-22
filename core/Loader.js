@@ -13,6 +13,7 @@ class Loader {
 
 		this.paths = {
 			scripts: path.join(this.root, "scripts"),
+			events: path.join(this.root, "scripts", "events"),
 			plugins: path.join(this.root, "plugins")
 		};
 
@@ -20,12 +21,15 @@ class Loader {
 			commands: 0,
 			events: 0,
 			plugins: 0,
-			errors: 0
+			errors: 0,
+			startTime: Date.now()
 		};
 
 		this.aliases = new Map();
 
 	}
+
+	/* بدء النظام */
 
 	async initialize() {
 
@@ -37,13 +41,18 @@ class Loader {
 
 		await this.loadEvents();
 
-		Logger.success("LOADER", "اكتمل تحميل النظام");
+		Logger.success(
+			"LOADER",
+			"اكتمل تحميل جميع الملفات"
+		);
 
 	}
 
+	/* إنشاء المجلدات */
+
 	async ensureDirectories() {
 
-		const directories = [
+		const folders = [
 
 			"scripts",
 
@@ -73,45 +82,57 @@ class Loader {
 
 		];
 
-		for (const dir of directories) {
+		for (const folder of folders) {
 
-			const fullPath = path.join(this.root, dir);
+			const full = path.join(
+				this.root,
+				folder
+			);
 
-			if (!fs.existsSync(fullPath)) {
+			if (!fs.existsSync(full)) {
 
-				fs.mkdirSync(fullPath, {
+				fs.mkdirSync(full, {
 					recursive: true
 				});
 
-				Logger.info("LOADER", `تم إنشاء ${dir}`);
+				Logger.info(
+					"LOADER",
+					`تم إنشاء ${folder}`
+				);
 
 			}
 
 		}
 
 	}
-		/**
-	 * البحث داخل جميع المجلدات بشكل Recursive
-	 */
+
+	/* البحث داخل المجلدات */
+
 	scanFiles(directory, extension = ".js") {
 
-		const files = [];
+		const result = [];
 
 		if (!fs.existsSync(directory))
-			return files;
+			return result;
 
-		const items = fs.readdirSync(directory, {
+		const files = fs.readdirSync(directory, {
 			withFileTypes: true
 		});
 
-		for (const item of items) {
+		for (const file of files) {
 
-			const fullPath = path.join(directory, item.name);
+			const full = path.join(
+				directory,
+				file.name
+			);
 
-			if (item.isDirectory()) {
+			if (file.isDirectory()) {
 
-				files.push(
-					...this.scanFiles(fullPath, extension)
+				result.push(
+					...this.scanFiles(
+						full,
+						extension
+					)
 				);
 
 				continue;
@@ -119,26 +140,28 @@ class Loader {
 			}
 
 			if (
-				item.isFile() &&
-				path.extname(item.name).toLowerCase() === extension
-			)
-				files.push(fullPath);
+				file.isFile() &&
+				path.extname(file.name) === extension
+			) {
+
+				result.push(full);
+
+			}
 
 		}
 
-		return files;
+		return result;
 
 	}
 
-	/**
-	 * حذف الكاش الخاص بـ require
-	 */
-	clearRequireCache(filePath) {
+	/* حذف كاش require */
+
+	clearRequireCache(file) {
 
 		try {
 
 			delete require.cache[
-				require.resolve(filePath)
+				require.resolve(file)
 			];
 
 		}
@@ -146,18 +169,17 @@ class Loader {
 
 	}
 
-	/**
-	 * إعادة تحميل الملف
-	 */
-	reload(filePath) {
+	/* إعادة تحميل ملف */
 
-		this.clearRequireCache(filePath);
+	reload(file) {
 
-		return require(filePath);
+		this.clearRequireCache(file);
 
-	}	/**
-	 * تحميل جميع الأوامر
-	 */
+		return require(file);
+
+	}
+		/* تحميل جميع الأوامر */
+
 	async loadCommands() {
 
 		Logger.loader("تحميل الأوامر...");
@@ -168,12 +190,19 @@ class Loader {
 
 		this.stats.commands = 0;
 
-		const files = this.scanFiles(this.paths.scripts);
+		const files = this.scanFiles(
+			this.paths.scripts
+		);
 
 		for (const file of files) {
 
-			// نتجاهل مجلد الأحداث
-			if (file.includes(`${path.sep}events${path.sep}`))
+			/* تجاهل مجلد الأحداث */
+
+			if (
+				file.includes(
+					`${path.sep}events${path.sep}`
+				)
+			)
 				continue;
 
 			try {
@@ -194,7 +223,9 @@ class Loader {
 
 				}
 
-				if (typeof command.execute !== "function") {
+				if (
+					typeof command.execute !== "function"
+				) {
 
 					Logger.warn(
 						"COMMAND",
@@ -205,7 +236,9 @@ class Loader {
 
 				}
 
-				if (this.rim.commands.has(command.name)) {
+				if (
+					this.rim.commands.has(command.name)
+				) {
 
 					Logger.warn(
 						"COMMAND",
@@ -219,9 +252,56 @@ class Loader {
 				command.filePath = file;
 
 				this.rim.commands.set(
-						/**
-	 * تحميل جميع الأحداث
-	 */
+					command.name,
+					command
+				);
+
+				/* تسجيل Alias */
+
+				if (
+					Array.isArray(command.aliases)
+				) {
+
+					for (const alias of command.aliases) {
+
+						if (
+							!this.aliases.has(alias)
+						) {
+
+							this.aliases.set(
+								alias,
+								command.name
+							);
+
+						}
+
+					}
+
+				}
+
+				this.stats.commands++;
+
+				Logger.command(command.name);
+
+			}
+			catch (err) {
+
+				this.stats.errors++;
+
+				Logger.error(
+					"COMMAND",
+					`${path.basename(file)}\n${err.stack}`
+				);
+
+			}
+
+		}
+
+		Logger.success(
+			"LOADER",
+			`تم تحميل ${this.stats.commands} أمر
+				/* تحميل جميع الأحداث */
+
 	async loadEvents() {
 
 		Logger.loader("تحميل الأحداث...");
@@ -230,12 +310,9 @@ class Loader {
 
 		this.stats.events = 0;
 
-		const eventsPath = path.join(
-			this.paths.scripts,
-			"events"
+		const files = this.scanFiles(
+			this.paths.events
 		);
-
-		const files = this.scanFiles(eventsPath);
 
 		for (const file of files) {
 
@@ -309,84 +386,8 @@ class Loader {
 			`تم تحميل ${this.stats.events} حدث`
 		);
 
-				}
-					/**
-	 * الحصول على اسم الأمر الحقيقي من Alias
-	 */
-	resolveAlias(name) {
-
-		if (this.rim.commands.has(name))
-			return name;
-
-		if (this.aliases.has(name))
-			return this.aliases.get(name);
-
-		return null;
-
 	}
 
-	/**
-	 * إعادة تحميل أمر
-	 */
-	async reloadCommand(name) {
+	/* إعادة تحميل أمر */
 
-		const command = this.rim.commands.get(name);
-
-		if (!command)
-			return false;
-
-		try {
-
-			const file = command.filePath;
-
-			this.clearRequireCache(file);
-
-			const newCommand = require(file);
-
-			this.rim.commands.set(
-				newCommand.name,
-				newCommand
-			);
-
-			Logger.success(
-				"LOADER",
-				`تم إعادة تحميل ${newCommand.name}`
-			);
-
-			return true;
-
-		}
-		catch (err) {
-
-			Logger.error(
-				"LOADER",
-				err.stack
-			);
-
-			return false;
-
-		}
-
-	}
-
-	/**
-	 * إحصائيات Loader
-	 */
-	getStats() {
-
-		return {
-
-			commands: this.stats.commands,
-
-			events: this.stats.events,
-
-			plugins: this.stats.plugins,
-
-			errors: this.stats.errors,
-
-			aliases: this.aliases.size
-
-		};
-
-	}
-				
+	async reload
