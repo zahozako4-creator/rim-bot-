@@ -2,127 +2,103 @@ class Context {
 
 	constructor(data = {}) {
 
-		/* الرسالة */
-		this.message = data.message || null;
-
-		/* مرسل الرسالة */
-		this.user = data.user || {};
-
-		/* المجموعة */
-		this.thread = data.thread || {};
-
-		/* معرفات */
-		this.senderID = data.senderID || null;
-		this.threadID = data.threadID || null;
-		this.messageID = data.messageID || null;
-
-		/* النص */
-		this.body = data.body || "";
-
-		/* الوسائط */
-		this.args = data.args || [];
-
-		/* البادئة */
-		this.prefix = data.prefix || ".";
-
-		/* اللغة */
-		this.language = data.language || "ar";
-
-		/* الأمر الحالي */
-		this.command = data.command || null;
-
-		/* الحدث الحالي */
-		this.event = data.event || null;
-
-		/* قاعدة البيانات */
-		this.database = data.database || null;
-
-		/* التطبيق */
-		this.app = data.app || null;
-
-		/* البوت */
-		this.rim = data.rim || null;
-
-		/* الصلاحيات */
-		this.permissions = data.permissions || 0;
-
-	}
-
-	/* إرسال رسالة */
-
-	async send(text, options = {}) {
-
-		if (!this.message)
-			throw new Error("message غير موجود");
-
-		return this.message.reply({
-			body: text,
-			...options
-		});
+		Object.assign(this, data);
 
 	}
 
 	/* رد */
 
-	async reply(text, options = {}) {
+	async reply(body) {
 
-		if (!this.message)
-			throw new Error("message غير موجود");
+		return this.rim.sender.reply(this, body);
 
-		return this.message.reply({
-			body: text,
-			...options
-		});
+	}
+
+	/* إرسال رسالة */
+
+	async send(body) {
+
+		return this.rim.sender.text(
+			this.threadID,
+			body
+		);
+
+	}
+
+	/* إرسال صورة */
+
+	async image(filePath, body = "") {
+
+		return this.rim.sender.image(
+			this.threadID,
+			filePath,
+			body
+		);
+
+	}
+
+	/* إرسال فيديو */
+
+	async video(filePath, body = "") {
+
+		return this.rim.sender.video(
+			this.threadID,
+			filePath,
+			body
+		);
+
+	}
+
+	/* إرسال صوت */
+
+	async audio(filePath, body = "") {
+
+		return this.rim.sender.audio(
+			this.threadID,
+			filePath,
+			body
+		);
 
 	}
 
 	/* تفاعل */
 
-	async react(emoji = "👍") {
+	async react(emoji) {
 
-		if (!this.message)
-			return;
-
-		if (typeof this.message.react === "function")
-			return this.message.react(emoji);
-
-	}
-
-	/* حذف */
-
-	async delete() {
-
-		if (!this.message)
-			return;
-
-		if (typeof this.message.unsend === "function")
-			return this.message.unsend();
+		return this.rim.sender.react(
+			emoji,
+			this.messageID
+		);
 
 	}
 
-	/* إرسال إلى مجموعة */
+	/* حذف الرسالة */
 
-	async sendTo(threadID, text, options = {}) {
+	async unsend() {
 
-		if (!this.rim?.api)
-			throw new Error("API غير موجود");
-
-		return this.rim.api.sendMessage({
-			body: text,
-			...options
-		}, threadID);
+		return this.rim.sender.unsend(
+			this.messageID
+		);
 
 	}
 
-	/* هل المستخدم Admin */
+	/* تغيير لقب */
+
+	async nickname(userID, nickname) {
+
+		return this.rim.sender.nickname(
+			this.threadID,
+			userID,
+			nickname
+		);
+
+	}
 
 	get isAdmin() {
 
 		return this.permissions >= 2;
 
 	}
-
-	/* هل Owner */
 
 	get isOwner() {
 
