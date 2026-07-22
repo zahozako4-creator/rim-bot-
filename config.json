@@ -1,1 +1,86 @@
+{
+  "bot": {
+    "name": "Rim 🍓",
+    "version": "1.0.0",
+    "description": "Professional Facebook Messenger Framework",
+    "prefix": ".",
+    "language": "ar",
+    "timezone": "Africa/Algiers",
+    "mode": "public",
+    "developer": "Fares"
+  },
 
+  "facebook": {
+    "appState": "./accounts/fbstate.json",
+    "listenEvents": true,
+    "selfListen": false,
+    "forceLogin": true,
+    "autoReconnect": true,
+    "reconnectDelay": 5000,
+    "autoMarkRead": false,
+    "autoMarkDelivery": false,
+    "autoTyping": false
+  },
+
+  "owner": {
+    "uid": "",
+    "name": "Fares",
+    "admins": []
+  },
+
+  "database": {
+    "driver": "json",
+    "path": "./database",
+    "autoBackup": true,
+    "backupInterval": 3600000
+  },
+
+  "cache": {
+    "enabled": true,
+    "ttl": 300,
+    "maxItems": 10000
+  },
+
+  "commands": {
+    "cooldown": true,
+    "defaultCooldown": 3,
+    "aliases": true,
+    "caseSensitive": false
+  },
+
+  "security": {
+    "antiSpam": true,
+    "antiFlood": true,
+    "antiLink": false,
+    "antiBot": true,
+    "maxMessagesPerMinute": 30
+  },
+
+  "logger": {
+    "enabled": true,
+    "saveToFile": true,
+    "directory": "./logs",
+    "level": "info"
+  },
+
+  "media": {
+    "cache": "./cache",
+    "maxUploadSize": 52428800,
+    "autoDeleteCache": true
+  },
+
+  "plugins": {
+    "enabled": true,
+    "directory": "./plugins",
+    "autoLoad": true,
+    "hotReload": false
+  },
+
+  "system": {
+    "debug": false,
+    "maintenance": false,
+    "autoReload": false,
+    "checkUpdates": true,
+    "crashRecovery": true
+  }
+}
